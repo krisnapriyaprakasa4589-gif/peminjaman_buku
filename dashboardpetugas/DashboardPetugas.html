@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dashboard Petugas - Universitas Jenderal Ahmad Yani</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#f3f6fb;--card:#fff;--accent:#2563eb;--muted:#6b7280;font-family:Inter,system-ui,sans-serif}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:#111827}
+    header{background:var(--accent);color:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center}
+    main{max-width:1100px;margin:20px auto;padding:0 16px}
+    .card{background:var(--card);padding:12px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.05)}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+    .cover{width:100%;height:160px;object-fit:cover;border-radius:8px;margin-bottom:8px}
+    .btn{background:var(--accent);color:#fff;border:none;padding:8px 10px;border-radius:8px;cursor:pointer;margin:3px 0}
+    .btn-danger{background:#dc2626;color:#fff}
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{border:1px solid #e5e7eb;padding:8px;text-align:left}
+    th{background:#f9fafb}
+    input,select{padding:8px;border-radius:8px;border:1px solid #d1d5db;margin-bottom:5px;width:100%}
+  </style>
+</head>
+<body>
+
+<script>
+// 🔥 PERBAIKAN: pakai sessionStorage (bukan localStorage)
+const cu = JSON.parse(sessionStorage.getItem('currentUser') || 'null');
+
+if(!cu || cu.role !== 'petugas'){
+  alert('Akses ditolak. Login sebagai petugas.');
+  window.location.href = "../login/login.html";
+}
+</script>
+
+<header>
+  <div>
+    <div style="font-weight:700">Universitas Jenderal Ahmad Yani • Petugas</div>
+    <div style="font-size:13px;opacity:.95" id="userInfo"></div>
+  </div>
+  <div><button class="btn" onclick="logout()">Logout</button></div>
+</header>
+
+<main>
+  <h3>Tambah Buku</h3>
+  <div class="card">
+    <input id="title" placeholder="Judul buku">
+    <input id="author" placeholder="Pengarang">
+    <input id="category" placeholder="Kategori">
+    <input id="stock" type="number" min="0" placeholder="Stok">
+    <input id="image" type="file" accept="image/*">
+    <img id="preview" style="display:none;width:120px;height:160px;object-fit:cover;border-radius:6px;margin-top:8px">
+    <button class="btn" onclick="saveBook()">Simpan</button>
+  </div>
+
+  <h3 style="margin-top:18px">Daftar Buku</h3>
+  <div class="grid" id="booksGrid"></div>
+
+  <h3 style="margin-top:18px">Permintaan Peminjaman</h3>
+  <table>
+    <thead><tr><th>Mahasiswa</th><th>Buku</th><th>Due</th><th>Catatan</th><th>Status</th><th>Aksi</th></tr></thead>
+    <tbody id="requestsTable"></tbody>
+  </table>
+</main>
+
+<script>
+(async function(){
+
+  const cu = JSON.parse(sessionStorage.getItem('currentUser') || 'null');
+  document.getElementById('userInfo').textContent = cu.name + " • " + cu.username;
+
+  // 🔥 Semua path sudah diperbaiki ke ../backend/
+  async function getBooks(){ 
+    const res = await fetch('../backend/get_books.php'); 
+    const j = await res.json(); 
+    return j.books || []; 
+  }
+
+  async function getRequests(){ 
+    const res = await fetch('../backend/get_requests.php'); 
+    const j = await res.json(); 
+    return j.requests || []; 
+  }
+
+  window.saveBook = async function(){
+    const title = document.getElementById('title').value.trim();
+    const author = document.getElementById('author').value.trim();
+    const category = document.getElementById('category').value.trim();
+    const stock = document.getElementById('stock').value || 0;
+
+    if(!title || !author || !category){
+      alert("Isi semua field");
+      return;
+    }
+
+    const form = new FormData();
+    form.append('title', title);
+    form.append('author', author);
+    form.append('category', category);
+    form.append('stock', stock);
+
+    const preview = document.getElementById('preview');
+    if(preview.src) form.append('image', preview.src);
+
+    const res = await fetch('../backend/save_book.php', { method:'POST', body: form });
+    const j = await res.json();
+
+    if(j.ok){
+      alert("Tersimpan");
+      renderBooks();
+      renderRequests();
+    } else {
+      alert("Gagal menyimpan!");
+    }
+  };
+
+  window.editBook = async function(id){
+    const books = await getBooks();
+    const b = books.find(x => x.id === id);
+    if(!b) return;
+
+    const newTitle = prompt("Judul baru:", b.title) || b.title;
+    const newAuthor = prompt("Pengarang baru:", b.author) || b.author;
+    const newCategory = prompt("Kategori baru:", b.category) || b.category;
+    const newStock = prompt("Stok baru:", b.stock) || b.stock;
+
+    const form = new FormData();
+    form.append('id', id);
+    form.append('title', newTitle);
+    form.append('author', newAuthor);
+    form.append('category', newCategory);
+    form.append('stock', newStock);
+
+    const res = await fetch('../backend/save_book.php', { method:'POST', body: form });
+    const j = await res.json();
+
+    if(j.ok) renderBooks();
+    else alert("Gagal update");
+  };
+
+  window.deleteBook = async function(id){
+    if(!confirm("Hapus buku?")) return;
+
+    const f = new FormData();
+    f.append('id', id);
+
+    const res = await fetch('../backend/delete_book.php', { method:'POST', body: f });
+    const j = await res.json();
+
+    if(j.ok) renderBooks();
+    else alert("Gagal hapus");
+  };
+
+  async function renderBooks(){
+    const container = document.getElementById('booksGrid');
+    const books = await getBooks();
+    container.innerHTML = "";
+
+    books.forEach(b=>{
+      const d = document.createElement('div');
+      d.className = 'card';
+      d.innerHTML = `
+        <img class="cover" src="${b.image || 'https://via.placeholder.com/200x280'}">
+        <strong>${b.title}</strong>
+        <div style="font-size:13px">${b.author}</div>
+        <div style="margin-top:6px">Stok: <strong>${b.stock}</strong></div>
+        <button class="btn" onclick="editBook(${b.id})">Edit</button>
+        <button class="btn btn-danger" onclick="deleteBook(${b.id})">Hapus</button>`;
+      container.appendChild(d);
+    });
+  }
+
+  async function renderRequests(){
+    const tbody = document.getElementById('requestsTable');
+    const reqs = await getRequests();
+    tbody.innerHTML = "";
+
+    reqs.forEach(r=>{
+      let actions = "";
+      if(r.status === "Pending"){
+        actions = `<button class='btn' onclick="approve('${r.id}')">Terima</button>
+                   <button class='btn' onclick="reject('${r.id}')">Tolak</button>`;
+      }
+      if(r.status === "Approved"){
+        actions = `<button class='btn' onclick="returnBook('${r.id}')">Kembalikan</button>`;
+      }
+      if(r.status === "Returned"){
+        actions = `<button class='btn btn-danger' onclick="deleteRequest('${r.id}')">Hapus</button>`;
+      }
+
+      tbody.innerHTML += `
+        <tr>
+          <td>${r.studentName}<br><small>${r.studentNIM}</small></td>
+          <td>${r.title}</td>
+          <td>${r.due_date}</td>
+          <td>${r.note || '-'}</td>
+          <td>${r.status}</td>
+          <td>${actions}</td>
+        </tr>`;
+    });
+  }
+
+  window.approve = async function(id){
+    const f = new FormData();
+    f.append('id', id);
+    f.append('action','approve');
+    await fetch('../backend/update_request.php',{ method:'POST', body:f });
+    renderRequests();
+    renderBooks();
+  };
+
+  window.reject = async function(id){
+    const f = new FormData();
+    f.append('id', id);
+    f.append('action','reject');
+    await fetch('../backend/update_request.php',{ method:'POST', body:f });
+    renderRequests();
+  };
+
+  window.returnBook = async function(id){
+    const f = new FormData();
+    f.append('id', id);
+    f.append('action','return');
+    await fetch('../backend/update_request.php',{ method:'POST', body:f });
+    renderRequests();
+    renderBooks();
+  };
+
+  window.deleteRequest = async function(id){
+    const f = new FormData();
+    f.append('id', id);
+    await fetch('../backend/delete_request.php',{ method:'POST', body:f });
+    renderRequests();
+  };
+
+  document.getElementById('image').addEventListener('change', e=>{
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = ()=>{ 
+      document.getElementById('preview').src = reader.result;
+      document.getElementById('preview').style.display='block';
+    }
+    reader.readAsDataURL(file);
+  });
+
+  window.logout = function(){
+    sessionStorage.removeItem('currentUser');
+    window.location.href = '../login/login.html';
+  };
+
+  await renderBooks();
+  await renderRequests();
+
+})();
+</script>
+
+</body>
+</html>
