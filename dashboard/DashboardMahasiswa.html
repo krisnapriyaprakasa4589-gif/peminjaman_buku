@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dashboard Mahasiswa - Universitas Jenderal Ahmad Yani</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#f3f6fb;--card:#fff;--accent:#2563eb;--muted:#6b7280;font-family:Inter,system-ui,sans-serif}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:#111827}
+
+    header{
+      background:var(--accent);color:#fff;padding:12px 20px;
+      display:flex;justify-content:space-between;align-items:center
+    }
+
+    main{max-width:1000px;margin:20px auto;padding:0 16px}
+
+    .search-bar{display:flex;gap:12px;margin-bottom:16px}
+    .search-bar input{flex:1;padding:10px;border-radius:8px;border:1px solid #e5e7eb}
+    .btn{background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
+
+    .book-list{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+      gap:16px;
+    }
+    .card{
+      background:var(--card);
+      padding:12px;
+      border-radius:10px;
+      box-shadow:0 6px 18px rgba(0,0,0,.05);
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      height:330px;
+    }
+    .cover{width:100%;height:160px;object-fit:cover;border-radius:8px}
+
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{border:1px solid #e5e7eb;padding:8px;text-align:left}
+    th{background:#f9fafb}
+    .pill{
+      padding:4px 8px;
+      border-radius:999px;
+      background:#eef2ff;
+      color:#3730a3;
+      font-size:12px;
+      margin-top:6px;
+      display:inline-block;
+      width:max-content;
+    }
+  </style>
+</head>
+<body>
+
+<script>
+  // CEK LOGIN MENGGUNAKAN sessionStorage (benar)
+  const u = JSON.parse(sessionStorage.getItem("currentUser"));
+  if(!u || u.role !== "mahasiswa"){
+    alert("Akses ditolak!");
+    window.location.href = "../login/login.html";
+  }
+</script>
+
+<header>
+  <div>
+    <div style="font-weight:700">Universitas Jenderal Ahmad Yani</div>
+    <div style="font-size:13px;opacity:.9" id="userInfo"></div>
+  </div>
+  <button class="btn" onclick="logout()">Logout</button>
+</header>
+
+<main>
+  <div class="search-bar">
+    <input id="searchInput" placeholder="Cari judul buku...">
+    <button class="btn" id="searchBtn">Cari</button>
+  </div>
+
+  <h3>Daftar Buku</h3>
+  <div class="book-list" id="bookList"></div>
+
+  <h3 style="margin-top:20px">Permintaan & Peminjaman Saya</h3>
+  <table id="myRequestsTable">
+    <thead><tr><th>Judul</th><th>Batas Kembali</th><th>Catatan</th><th>Status</th><th>Aksi</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</main>
+
+<script>
+(async function(){
+
+  const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+
+  document.getElementById('userInfo').textContent =
+    `${currentUser.name} • ${currentUser.nim || currentUser.username} • ${currentUser.dept || ''}`;
+
+  /* ==========================
+      API: GET BUKU
+  ========================== */
+  async function apiGetBooks(q=''){
+    const url = '../backend/get_books.php' + (q ? '?q='+encodeURIComponent(q) : '');
+    const res = await fetch(url);
+    const j = await res.json();
+    return j.books || [];
+  }
+
+  /* ==========================
+      API: GET PERMINTAAN
+  ========================== */
+  async function apiGetRequests(){
+    const url = '../backend/get_requests.php?student_nim=' + encodeURIComponent(currentUser.nim || currentUser.username);
+    const res = await fetch(url);
+    const j = await res.json();
+    return j.requests || [];
+  }
+
+  /* ==========================
+      RENDER LIST BUKU
+  ========================== */
+  async function renderBooks(q=''){
+    const list = await apiGetBooks(q);
+    const el = document.getElementById('bookList');
+    el.innerHTML = '';
+
+    const available = list.filter(b => b.stock > 0);
+
+    if(available.length===0){
+      el.innerHTML = '<div class="card">Tidak ada buku.</div>';
+      return;
+    }
+
+    available.forEach(b=>{
+      const div=document.createElement('div');
+      div.className='card';
+      div.innerHTML = `
+        <img class="cover" src="${b.image||'https://via.placeholder.com/200x280'}">
+        <strong>${b.title}</strong>
+        <div>${b.author||'-'}</div>
+        <div class="pill">${b.category||''}</div>
+        <div>Stok: <strong>${b.stock}</strong></div>
+        <button class="btn" style="width:100%;margin-top:10px" onclick="applyRequest(${b.id})">
+          Ajukan Peminjaman
+        </button>
+      `;
+      el.appendChild(div);
+    });
+  }
+
+  /* ==========================
+      AJUKAN PEMINJAMAN
+  ========================== */
+  window.applyRequest = async function(bookId){
+    const books = await apiGetBooks();
+    const b = books.find(x=>x.id===bookId);
+    if(!b || b.stock<=0){ alert('Buku tidak tersedia'); return; }
+
+    const due = prompt("Masukkan tanggal batas kembali (YYYY-MM-DD):");
+    if(!due){ alert("Tanggal wajib diisi!"); return; }
+
+    const note = prompt("Catatan (opsional):") || '';
+
+    const form = new FormData();
+    form.append("book_id", bookId);
+    form.append("title", b.title);
+    form.append("category", b.category || '');
+    form.append("student_nim", currentUser.nim || currentUser.username);
+    form.append("student_name", currentUser.name);
+    form.append("student_dept", currentUser.dept || '');
+    form.append("due_date", due);
+    form.append("note", note);
+
+    const res = await fetch("../backend/create_request.php", { method:"POST", body: form });
+    const j = await res.json();
+
+    if(j.ok){
+      alert("Permintaan berhasil dikirim!");
+      renderMyRequests();
+    } else {
+      alert("Gagal: " + j.msg);
+    }
+  };
+
+  /* ==========================
+      RENDER PERMINTAAN
+  ========================== */
+  async function renderMyRequests(){
+    const tbody = document.querySelector('#myRequestsTable tbody');
+    const reqs = await apiGetRequests();
+    tbody.innerHTML = '';
+
+    if(reqs.length===0){
+      tbody.innerHTML = '<tr><td colspan="5">Belum ada permintaan.</td></tr>';
+      return;
+    }
+
+    reqs.forEach(r=>{
+      const action = r.status === 'Approved'
+        ? `<button class="btn" onclick="returnBook('${r.id}')">Kembalikan</button>` : '-';
+
+      tbody.innerHTML += `
+        <tr>
+          <td>${r.title}</td>
+          <td>${r.due_date || '-'}</td>
+          <td>${r.note || '-'}</td>
+          <td>${r.status}</td>
+          <td>${action}</td>
+        </tr>
+      `;
+    });
+  }
+
+  /* ==========================
+      KEMBALIKAN BUKU
+  ========================== */
+  window.returnBook = async function(reqId){
+    if(!confirm("Konfirmasi pengembalian?")) return;
+
+    const form = new FormData();
+    form.append("id", reqId);
+    form.append("action", "return");
+
+    const res = await fetch("../backend/update_request.php", {
+      method:"POST",
+      body: form
+    });
+    const j = await res.json();
+
+    if(j.ok){
+      alert("Buku telah dikembalikan!");
+      renderBooks();
+      renderMyRequests();
+    } else {
+      alert("Gagal: " + j.msg);
+    }
+  };
+
+  /* ==========================
+      SEARCH
+  ========================== */
+  document.getElementById("searchBtn").addEventListener("click", ()=>{
+    renderBooks(document.getElementById("searchInput").value);
+  });
+
+  document.getElementById("searchInput").addEventListener("keypress", e=>{
+    if(e.key==='Enter') renderBooks(e.target.value);
+  });
+
+  window.logout = function(){
+    sessionStorage.removeItem("currentUser");
+    window.location.href = "../login/login.html";
+  };
+
+  await renderBooks();
+  await renderMyRequests();
+
+})();
+</script>
+
+</body>
+</html>
