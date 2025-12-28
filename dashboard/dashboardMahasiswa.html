@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dashboard Mahasiswa</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg:#f3f6fb;
+      --card:#fff;
+      --accent:#2563eb;
+      --muted:#6b7280;
+      font-family:Inter,system-ui,sans-serif
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:#111827}
+
+    header{
+      background:var(--accent);
+      color:#fff;
+      padding:12px 20px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center
+    }
+
+    main{max-width:1000px;margin:20px auto;padding:0 16px}
+
+    .search-bar{display:flex;gap:12px;margin-bottom:16px}
+    .search-bar input{
+      flex:1;
+      padding:10px;
+      border-radius:8px;
+      border:1px solid #e5e7eb
+    }
+
+    .btn{
+      background:var(--accent);
+      color:#fff;
+      border:none;
+      padding:8px 12px;
+      border-radius:8px;
+      cursor:pointer
+    }
+
+    .book-list{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+      gap:16px;
+    }
+
+    .card{
+      background:var(--card);
+      padding:12px;
+      border-radius:10px;
+      box-shadow:0 6px 18px rgba(0,0,0,.05);
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      height:330px;
+    }
+
+    .cover{
+      width:100%;
+      height:160px;
+      object-fit:cover;
+      border-radius:8px
+    }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:12px
+    }
+
+    th,td{
+      border:1px solid #e5e7eb;
+      padding:8px;
+      text-align:left
+    }
+
+    th{background:#f9fafb}
+
+    .pill{
+      padding:4px 8px;
+      border-radius:999px;
+      background:#eef2ff;
+      color:#3730a3;
+      font-size:12px;
+      margin-top:6px;
+      display:inline-block;
+      width:max-content;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div>
+    <div style="font-weight:700">Universitas Jenderal Ahmad Yani</div>
+    <div style="font-size:13px;opacity:.9" id="userInfo"></div>
+  </div>
+  <button class="btn" onclick="logout()">Logout</button>
+</header>
+
+<main>
+
+  <div class="search-bar">
+    <input id="searchInput" placeholder="Cari judul buku...">
+    <button class="btn" id="searchBtn">Cari</button>
+  </div>
+
+  <h3>Daftar Buku</h3>
+  <div class="book-list" id="bookList"></div>
+
+  <h3 style="margin-top:20px">Permintaan & Peminjaman Saya</h3>
+  <table id="myRequestsTable">
+    <thead>
+      <tr>
+        <th>Judul</th>
+        <th>Batas Kembali</th>
+        <th>Catatan</th>
+        <th>Status</th>
+        <th>Aksi</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+</main>
+
+<!-- =========================
+     LOAD OOP CLASS
+========================== -->
+<script src="js/DashboardMahasiswa.js"></script>
+
+</body>
+</html>
