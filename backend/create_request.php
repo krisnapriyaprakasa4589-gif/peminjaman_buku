@@ -1,37 +1,50 @@
 <?php
-header('Content-Type: application/json');
-require "koneksi.php";
+require "db.php";
 
-if (empty($_POST)) {
-    echo json_encode(['ok'=>false,'msg'=>'POST kosong']);
-    exit;
+$mahasiswa_id   = $_POST['mahasiswa_id'];
+$mahasiswa_nim  = $_POST['mahasiswa_nim'];
+$mahasiswa_nama = $_POST['mahasiswa_nama'];
+$buku_id        = $_POST['buku_id'];
+$judul_buku     = $_POST['judul_buku'];
+$tanggal_pinjam = $_POST['tanggal_pinjam'];
+$due_date       = $_POST['due_date'];
+$note           = $_POST['note'] ?? '';
+
+if(!$mahasiswa_id){
+  echo json_encode(["ok"=>false,"msg"=>"Field mahasiswa_id kosong"]);
+  exit;
 }
 
-$sql = "
-INSERT INTO peminjaman
-(book_id, judul_buku, mahasiswa_nim, mahasiswa_nama, mahasiswa_dept,
- due_date, note, status, created_at)
-VALUES (
-  '{$_POST['book_id']}',
-  '{$_POST['judul_buku']}',
-  '{$_POST['mahasiswa_nim']}',
-  '{$_POST['mahasiswa_nama']}',
-  '{$_POST['mahasiswa_dept']}',
-  '{$_POST['due_date']}',
-  '{$_POST['note']}',
-  'Pending',
-  NOW()
-)";
+$q = mysqli_query($conn, "
+  INSERT INTO peminjaman
+  (
+    mahasiswa_id,
+    mahasiswa_nim,
+    mahasiswa_nama,
+    buku_id,
+    judul_buku,
+    tanggal_pinjam,
+    due_date,
+    status,
+    note
+  ) VALUES (
+    '$mahasiswa_id',
+    '$mahasiswa_nim',
+    '$mahasiswa_nama',
+    '$buku_id',
+    '$judul_buku',
+    '$tanggal_pinjam',
+    '$due_date',
+    'Pending',
+    '$note'
+  )
+");
 
-$q = mysqli_query($conn, $sql);
-
-if (!$q) {
-    echo json_encode([
-        'ok'=>false,
-        'msg'=>'Query gagal',
-        'error'=>mysqli_error($conn)
-    ]);
-    exit;
+if($q){
+  echo json_encode(["ok"=>true]);
+}else{
+  echo json_encode([
+    "ok"=>false,
+    "msg"=>mysqli_error($conn)
+  ]);
 }
-
-echo json_encode(['ok'=>true]);
