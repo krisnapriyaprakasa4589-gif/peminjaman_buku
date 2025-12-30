@@ -1,28 +1,24 @@
 <?php
 session_start();
-// Cek sesi login petugas
 if (!isset($_SESSION['role']) || $_SESSION['role'] != 'petugas') { 
     header("Location: index.php"); 
     exit; 
 }
 
-require_once 'classes/classes.php'; // Load semua class
+require_once 'classes/classes.php'; 
 require 'header.php';
 
 $db = (new Database())->getConnection();
 $bukuObj = new Buku($db);
 $pinjamObj = new Peminjaman($db);
 
-// --- LOGIKA PHP (Server Side) ---
 
-// 1. Verifikasi Peminjaman (Terima/Tolak Request)
 if (isset($_GET['aksi']) && isset($_GET['id'])) {
     if($pinjamObj->verifikasiPeminjaman($_GET['id'], $_GET['aksi'])) { 
         echo "<script>window.location='dashboard_petugas.php';</script>"; 
     }
 }
 
-// 2. Konfirmasi Pengembalian (Terima Buku Fisik)
 if (isset($_GET['terima_kembali'])) {
     $pesan = $pinjamObj->prosesPengembalian($_GET['terima_kembali']);
     echo "<script>alert('$pesan'); window.location='dashboard_petugas.php';</script>";
@@ -157,7 +153,6 @@ if (isset($_GET['terima_kembali'])) {
                         </thead>
                         <tbody>
                             <?php 
-                            // Mengambil data peminjaman yang statusnya 'dipinjam'
                             $listAktif = $pinjamObj->getPeminjamanAktif();
                             
                             if(empty($listAktif)): ?>
@@ -193,7 +188,6 @@ if (isset($_GET['terima_kembali'])) {
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    // AJAX TAMBAH BUKU
     document.getElementById('formTambahBuku').addEventListener('submit', function(e) {
         e.preventDefault(); 
         let btnSimpan = document.getElementById('btnSimpan');
@@ -232,7 +226,6 @@ if (isset($_GET['terima_kembali'])) {
         });
     });
 
-    // AJAX HAPUS BUKU
     function hapusBuku(idBuku) {
         Swal.fire({
             title: 'Hapus Buku?',
