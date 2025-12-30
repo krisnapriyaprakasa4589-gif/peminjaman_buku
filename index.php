@@ -1,8 +1,6 @@
 <?php
 session_start();
 
-// [PERBAIKAN ADA DISINI]
-// Mengarahkan ke folder 'classes'
 require_once 'classes/classes.php'; 
 
 $db = (new Database())->getConnection();
